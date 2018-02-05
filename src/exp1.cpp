@@ -400,7 +400,7 @@ bool evaluate_query(unordered_set<int> begin_nodes, unordered_set<int> end_nodes
 
 
 int main() {
-    freopen("../data/graph.txt", "r", stdin);
+    freopen("../data/input.txt", "r", stdin);
 	int versize, edgesize;
 
 	cin >> versize >> edgesize;
