@@ -1,4 +1,5 @@
 #include <bits/stdc++.h>
+#include <chrono>
 
 using namespace std;
 #define NCOLORS 10
@@ -377,8 +378,6 @@ int main() {
 
 	string uatt, vatt, regex;
 	int querysize;
-    double t;
-    double total_t = 0;
     int num_queries;
 
 	cin >> querysize;
@@ -389,18 +388,15 @@ int main() {
 		num_queries += 1;
         cout << "Starting Query " << num_queries << endl;
 		cin >> uatt >> vatt >> regex;
-		clock_t t;
-		t = clock();
+        auto start = std::chrono::high_resolution_clock::now();
         vector<int> begin = find_candidate_nodes(uatt, att1, att2, att3, att4, versize);
         vector<int> end = find_candidate_nodes(vatt, att1, att2, att3, att4, versize);
         unordered_set<int> begin_nodes(begin.begin(), begin.end());
         unordered_set<int> end_nodes(end.begin(), end.end());
         evaluate_query(begin_nodes, end_nodes, color_frequency, regex, fp);
-        t = clock() - t;
-        t = (double)t / CLOCKS_PER_SEC;
-        time_record.push_back(t);
-        total_t += t;
+        auto diff = std::chrono::high_resolution_clock::now() - start;
+        auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+        cout << "Time Taken: " << t1.count() << endl;
     }
-    cout << endl << "Time taken: " << total_t << endl;
     return 0;
 }
