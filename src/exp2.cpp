@@ -286,18 +286,13 @@ void find_satisfying_nodes(
         vector<string> regex_ops,
         FILE* fp) {
     int len = regex_colors.size();
-    int prev_color = -1;
     unordered_set<int> begin_nodes;
     begin_nodes.insert(u);
-    int* color_table;
     for (int color_index = 0; color_index < len; color_index++) {
         int color = regex_colors[color_index] - 'a';
         int N = color_frequency[color];
-        if (color != prev_color) {
-            color_table = (int*)malloc(sizeof(int) * 3 * N);
-            find_color_pairs(color_table, color, color_frequency, fp);
-        }
-        prev_color = color;
+        int* color_table = new int[3 * N];
+        find_color_pairs(color_table, color, color_frequency, fp);
         vector<int> candidate_next_begin;
         for (int i = 0; i < 3 * N; i += 3) {
             bool check = check_satisfiability(color_table[i + 2], regex_ops[color_index]);
@@ -309,6 +304,7 @@ void find_satisfying_nodes(
         }
         unordered_set<int> tmp(candidate_next_begin.begin(), candidate_next_begin.end());
         begin_nodes = tmp;
+        delete [] color_table;
     }
     // check for common elements between begin_nodes & end_nodes
     unordered_set<int>::iterator it;
@@ -354,11 +350,11 @@ int main() {
 		adj[u - 1][color - 'a'].push_back(v - 1);
 	}
 
-    int*** BFS_mat = (int***)malloc(NCOLORS * sizeof(int**));
+    int*** BFS_mat = new int**[NCOLORS];
     for (int i = 0; i < NCOLORS; i++) {
-        BFS_mat[i] = (int**)malloc(versize * sizeof(int*));
+        BFS_mat[i] = new int*[versize];
         for (int j = 0; j < versize; j++) {
-            BFS_mat[i][j] = (int*)malloc(versize * sizeof(int));
+            BFS_mat[i][j] = new int[versize];
             for (int k = 0; k < versize; k++) {
                 BFS_mat[i][j][k] = INF;
             }
@@ -370,6 +366,14 @@ int main() {
     int* color_frequency = (int*)malloc(NCOLORS * sizeof(int));
     FILE* fp = fopen("../log/BFS_mat_1.txt", "r+");
     save_BFS_matrix(BFS_mat, versize, color_frequency, fp);
+
+    for (int i = 0; i < NCOLORS; i++) {
+        for (int j = 0; j < versize; j++) {
+            delete [] BFS_mat[i][j];
+        }
+        delete [] BFS_mat[i];
+    }
+    delete [] BFS_mat;
 
 	string uatt, vatt, regex;
 	int querysize;
