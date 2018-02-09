@@ -1,4 +1,5 @@
 #include <bits/stdc++.h>
+#include <chrono>
 
 using namespace std;
 #define NCOLORS 10
@@ -286,7 +287,7 @@ bool check_satisfiability(int u, int v, int dist, string regex_op) {
 }
 
 
-vector< pair<int, int> > recursive_search(
+unordered_set< pair<int, int>, pair_hash> recursive_search(
         unordered_set<int> &begin_nodes,
         unordered_set<int> &end_nodes,
         int* color_frequency,
@@ -296,10 +297,8 @@ vector< pair<int, int> > recursive_search(
     /*
      * This function recursively evaluates the query
      */
-    cout << "Fumction called" << endl;
     int index_of_min_freq_color = find_color_with_min_frequency(regex_colors, color_frequency);
     int color = regex_colors[index_of_min_freq_color] - 'a';
-    cout << regex_colors[index_of_min_freq_color] << endl;
 
     // extract the data for `color`
     int N = color_frequency[color];
@@ -318,7 +317,7 @@ vector< pair<int, int> > recursive_search(
         }
     }
     int len = regex_colors.size();
-    vector< pair<int, int> > res;
+    unordered_set< pair<int, int>, pair_hash > res;
     if (candidate_begin.size() == 0)
         return res;
 
@@ -327,7 +326,7 @@ vector< pair<int, int> > recursive_search(
         for (int i = 0; i < L; i++) {
             if (begin_nodes.find(candidate_begin[i]) != begin_nodes.end()
                     && end_nodes.find(candidate_end[i]) != end_nodes.end()) {
-                res.push_back(make_pair(candidate_begin[i], candidate_end[i]));
+                res.insert(make_pair(candidate_begin[i], candidate_end[i]));
             }
         }
         return res;
@@ -345,16 +344,17 @@ vector< pair<int, int> > recursive_search(
         // Recursively call find path on remaining query
         vector<char> new_regex_colors(regex_colors.begin() + 1, regex_colors.end());
         vector<string> new_regex_ops(regex_ops.begin() + 1, regex_ops.end());
-        vector< pair<int, int> > remaining_path = recursive_search(next_begin_nodes, end_nodes, color_frequency, new_regex_colors, new_regex_ops, fp);
+        unordered_set< pair<int, int>, pair_hash > remaining_path =
+            recursive_search(next_begin_nodes, end_nodes, color_frequency, new_regex_colors, new_regex_ops, fp);
         // update the paths by replacing path start with corresponding
         // node from `current_edges`
-        int num_paths = remaining_path.size();
-        for (int i = 0; i < num_paths; i++) {
-            int old_start = remaining_path[i].first;
+        //unordered_set< pair<int, int>, pair_hash >::iterator it;
+        for (auto it = remaining_path.begin(); it != remaining_path.end(); it++) {
+            int old_start = (*it).first;
             vector<int> new_starts = current_edges[old_start];
             int d = new_starts.size();
             for (int j = 0; j < d; j++) {
-                res.push_back(make_pair(new_starts[j], remaining_path[i].second));
+                res.insert(make_pair(new_starts[j], (*it).second));
             }
         }
         return res;
@@ -372,16 +372,16 @@ vector< pair<int, int> > recursive_search(
         // Recursively call find path on remaining query
         vector<char> new_regex_colors(regex_colors.begin(), regex_colors.end() - 1);
         vector<string> new_regex_ops(regex_ops.begin(), regex_ops.end() - 1);
-        vector< pair<int, int> > remaining_path = recursive_search(begin_nodes, next_end_nodes, color_frequency, new_regex_colors, new_regex_ops, fp);
+        unordered_set< pair<int, int>, pair_hash > remaining_path =
+            recursive_search(begin_nodes, next_end_nodes, color_frequency, new_regex_colors, new_regex_ops, fp);
         // update the paths by replacing path start with corresponding
         // node from `current_edges`
-        int num_paths = remaining_path.size();
-        for (int i = 0; i < num_paths; i++) {
-            int old_end = remaining_path[i].second;
+        for (auto it = remaining_path.begin(); it != remaining_path.end(); it++) {
+            int old_end = (*it).second;
             vector<int> new_ends = current_edges[old_end];
             int d = new_ends.size();
             for (int j = 0; j < d; j++) {
-                res.push_back(make_pair(remaining_path[i].first, new_ends[j]));
+                res.insert(make_pair((*it).first, new_ends[j]));
             }
         }
         return res;
@@ -399,19 +399,17 @@ vector< pair<int, int> > recursive_search(
         unordered_set<int> next_end_nodes(candidate_begin.begin(), candidate_begin.end());
         unordered_set<int> next_begin_nodes(candidate_end.begin(), candidate_end.end());
 
-        vector< pair<int, int> > path_above = recursive_search(begin_nodes, next_end_nodes, color_frequency, begin_regex_color, begin_regex_ops, fp);
-        vector< pair<int, int> > path_below = recursive_search(next_begin_nodes, end_nodes, color_frequency, end_regex_color, end_regex_ops, fp);
+        unordered_set< pair<int, int>, pair_hash > path_above =
+            recursive_search(begin_nodes, next_end_nodes, color_frequency, begin_regex_color, begin_regex_ops, fp);
+        unordered_set< pair<int, int>, pair_hash > path_below =
+            recursive_search(next_begin_nodes, end_nodes, color_frequency, end_regex_color, end_regex_ops, fp);
 
-        // concatenate both paths carefully by considering common points
-        int N_path1 = path_above.size();
-        int N_path2 = path_below.size();
-        for (int i = 0; i < N_path1; i++) {
-            for (int j = 0; j < N_path2; j++) {
-                int start = path_above[i].second;
-                int end = path_below[j].first;
+        for (auto it1 = path_above.begin(); it1 != path_above.end(); it1++) {
+            for (auto it2 = path_below.begin(); it2 != path_below.end(); it2++) {
+                int start = (*it1).second;
+                int end = (*it2).first;
                 if (current_edges.find(make_pair(start, end)) != current_edges.end()) {
-                    // since both paths can be joined by a valid edge, a complete path has been found
-                    res.push_back(make_pair(path_above[i].first, path_below[i].second));
+                    res.insert(make_pair((*it1).first, (*it2).second));
                 }
             }
         }
@@ -427,12 +425,8 @@ void evaluate_query(unordered_set<int> begin_nodes, unordered_set<int> end_nodes
     vector<char> regex_colors;
     vector<string> regex_ops;
     split_regex(regex, regex_colors, regex_ops);
-    vector< pair<int, int> > query_res = recursive_search(begin_nodes, end_nodes, color_frequency, regex_colors, regex_ops, fp);
-    cout << "Func returned" << endl;
-    cout << query_res.size() << endl;
-    sort(query_res.begin(), query_res.end(), func);
-    vector< pair<int, int> >::iterator it;
-    for (it = query_res.begin(); it != query_res.end(); it++) {
+    unordered_set< pair<int, int>, pair_hash > query_res = recursive_search(begin_nodes, end_nodes, color_frequency, regex_colors, regex_ops, fp);
+    for (auto it = query_res.begin(); it != query_res.end(); it++) {
         cout << "(" << (*it).first << ", " << (*it).second << ")" << endl;
     }
     return;
@@ -479,29 +473,23 @@ int main() {
 
 	string uatt, vatt, regex;
 	int querysize;
-    double t;
-    double total_t = 0;
     int num_queries;
 
 	cin >> querysize;
-    cout << "Number of Queries: " << querysize << endl;
     vector<int> time_record;
 	while (querysize--) {
         // perform query
 		num_queries += 1;
 		cin >> uatt >> vatt >> regex;
-		clock_t t;
-		t = clock();
+        auto start = std::chrono::high_resolution_clock::now();
         vector<int> begin = find_candidate_nodes(uatt, att1, att2, att3, att4, versize);
         vector<int> end = find_candidate_nodes(vatt, att1, att2, att3, att4, versize);
         unordered_set<int> begin_nodes(begin.begin(), begin.end());
         unordered_set<int> end_nodes(end.begin(), end.end());
         evaluate_query(begin_nodes, end_nodes, color_frequency, regex, fp);
-        t = clock() - t;
-        t = (double)t / CLOCKS_PER_SEC;
-        time_record.push_back(t);
-        total_t += t;
+        auto diff = std::chrono::high_resolution_clock::now() - start;
+        auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+        cout << "Time Taken: " << t1.count() << endl;
     }
-    cout << endl << "Time taken: " << total_t << endl;
     return 0;
 }
