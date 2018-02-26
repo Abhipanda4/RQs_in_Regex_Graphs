@@ -2,8 +2,10 @@
 #include <chrono>
 
 using namespace std;
-#define NCOLORS 10
-#define INF     INT_MAX
+#define  NCOLORS               10
+#define  INF                   INT_MAX
+#define  NUM_SIMULATIONS       1000
+#define  THRESHOLD_NUM_NODES   20
 
 
 bool matchstr(string att, string op, string val) {
@@ -333,12 +335,92 @@ void evaluate_query(
     return;
 }
 
+
+vector<float> find_normalized_degree(int versize, vector< vector< pair<int, char> > > &adj) {
+    vector<float> normalized_degree(versize, 0);
+    for (int i = 0; i < versize; i++) {
+        normalized_degree[i] = adj[i].size();
+    }
+    int max_degree = *max_element(normalized_degree.begin(), normalized_degree.end());
+    for (int i = 0; i < versize; i++) {
+        normalized_degree[i] /= max_degree;
+    }
+    return normalized_degree;
+}
+
+vector<int> find_path(int u, int v, int versize, vector< vector< pair<int, char> > > &adj) {
+    vector<int> parent(versize, -1);
+    vector<bool> visited(versize, false);
+    queue<int> q;
+    q.push(u);
+    visited[u] = true;
+    while (!visited[v] && !q.empty()) {
+        int curr_vertex = q.front();
+        q.pop();
+        for (auto it = adj[curr_vertex].begin(); it != adj[curr_vertex].end(); it++) {
+            pair<int, int> edge = *it;
+            if (!visited[edge.first]) {
+                q.push(edge.first);
+                visited[edge.first] = true;
+                parent[edge.first] = curr_vertex;
+            }
+        }
+    }
+    vector<int> path;
+    if (visited[v]) {
+        // backtrace
+        int curr_vertex = v;
+        while (curr_vertex != u) {
+            curr_vertex = parent[curr_vertex];
+            path.push_back(curr_vertex);
+        }
+    }
+    return path;
+}
+
+bool comparator(pair<int, float> a, pair<int, float> b) {
+    return (a.second >= b.second);
+}
+
+vector<int> argsort(vector<float> &X) {
+    int N = X.size();
+    vector< pair<int, float> > index_pair;
+    for (int i = 0; i < N; i++) {
+        index_pair.push_back(make_pair(i, X[i]));
+    }
+    sort(index_pair.begin(), index_pair.end(), comparator);
+    vector<int> sorted_indices;
+    for (int i = 0; i < N; i++) {
+        sorted_indices.push_back(index_pair[i].first);
+    }
+    return sorted_indices;
+}
+
 unordered_set<int> monte_carlo(int versize, vector< vector< pair<int, char> > > &adj) {
     unordered_set<int> result;
-    for (int i = 19; i < 1000; i += 29)
-        result.insert(i);
-    //result.insert(0);
-    //result.insert(2);
+    vector<float> ranking(versize, 0);
+    // run monte carlo sampling
+    for (int i = 0; i < NUM_SIMULATIONS; i++) {
+        int u = rand() % versize;
+        int v = rand() % versize;
+        while (v == u) {
+            // required so that u and v are distinct
+            v = rand() % versize;
+        }
+        vector<int> path = find_path(u, v, versize, adj);
+        for (auto it = path.begin(); it != path.end(); it++) {
+            ranking[*it] += 1;
+        }
+    }
+    vector<float> degree = find_normalized_degree(versize, adj);
+    float max_rank = *max_element(ranking.begin(), ranking.end());
+    for (int i = 0; i < versize; i++) {
+        ranking[i] = degree[i] + ranking[i] / max_rank;
+    }
+    vector<int> sorted_nodes = argsort(ranking);
+    for (int i = 0; i < THRESHOLD_NUM_NODES; i++) {
+        result.insert(sorted_nodes[i]);
+    }
     return result;
 }
 
