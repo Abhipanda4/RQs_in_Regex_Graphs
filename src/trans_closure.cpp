@@ -156,7 +156,8 @@ void BFS_matrix_build(vector< vector< vector<int> > > &adj, int versize, int*** 
             queue< pair<int,int> > q;
             q.push(make_pair(curr_vertex, 0));
             vector<bool> flag(versize, 0);
-            bool cyclefound = false;
+            flag[curr_vertex] = true;
+            //bool cyclefound = false;
             while (!q.empty()) {
                 pair<int, int> v = q.front();
                 q.pop();
@@ -166,12 +167,12 @@ void BFS_matrix_build(vector< vector< vector<int> > > &adj, int versize, int*** 
                 }
                 vector<int>::iterator it;
                 for(it = adj[v.first][col].begin(); it != adj[v.first][col].end(); ++it) {
-                    if (!cyclefound && *it == curr_vertex) {
+                    //if (!cyclefound && *it == curr_vertex) {
                         // first self loop; shortest path from curr_vertex to itself found
-                        M[col][curr_vertex][curr_vertex] = v.second + 1;
-                        cyclefound = true;
-                        continue;
-                    }
+                        //M[col][curr_vertex][curr_vertex] = v.second + 1;
+                        //cyclefound = true;
+                        //continue;
+                    //}
                     if (!flag[*it]) {
                         // push all unvisited vertices connected to the node
                         // with current color into the queue
@@ -202,30 +203,52 @@ void BFS_matrix_build(vector< vector< vector<int> > > &adj, int versize, int*** 
     return;
 }
 
-
+typedef struct Triplets {
+    Triplets(int _u, int _v, int _dist) {
+        u = _u;
+        v = _v;
+        dist = _dist;
+    }
+    int u;
+    int v;
+    int dist;
+} triplets;
 
 void save_BFS_matrix(int*** BFS_mat, int versize, int* color_frequency, FILE* fp) {
     for (int c = 0; c < n_colors; c++) {
-        int count = 0;
+        vector<triplets> connected_nodes;
+        // find all connected pairs
         for (int u = 0; u < versize; u++) {
             for (int v = 0; v < versize; v++) {
-                // *******************************************************************************
-                // DEBUG
-                // *******************************************************************************
-                //cout << u << " - " << v << endl;
-                //cout << BFS_mat[c][u][v] << endl;
-                // *******************************************************************************
-                // *******************************************************************************
                 if (BFS_mat[c][u][v] != INF) {
-                    // write (u, v, d) into the file
-                    count += 1;
-                    fwrite(&u, sizeof(int), 1, fp);
-                    fwrite(&v, sizeof(int), 1, fp);
-                    fwrite(&BFS_mat[c][u][v], sizeof(int), 1, fp);
+                    // *******************************************************************************
+                    // DEBUG
+                    // *******************************************************************************
+                    //cout << u << " - " << v << endl;
+                    //cout << BFS_mat[c][u][v] << endl;
+                    // *******************************************************************************
+                    // *******************************************************************************
+                    //cout << u << " -- " << v << endl;
+                    triplets T(u, v, BFS_mat[c][u][v]);
+                    //cout << T.u << " -- " << T.v << " -- " << T.dist << endl;
+                    connected_nodes.push_back(T);
                 }
             }
         }
-        color_frequency[c] = count;
+        //cout << count << " ^^" << endl;
+        //cout << "Mark1" << endl;
+        color_frequency[c] = connected_nodes.size();
+        //sort(connected_nodes.begin(), connected_nodes.end(),
+                //[](triplets a, triplets b) {
+                    //return (a.dist <= b.dist);
+                //});
+
+        for (auto it = connected_nodes.begin(); it != connected_nodes.end(); it++) {
+            triplets T = *it;
+            fwrite(&(T.u), sizeof(int), 1, fp);
+            fwrite(&(T.v), sizeof(int), 1, fp);
+            fwrite(&(T.dist), sizeof(int), 1, fp);
+        }
     }
     return;
 }
@@ -263,23 +286,21 @@ void find_color_pairs(int* color_table, int color, int* color_frequency, FILE* f
 }
 
 
-bool check_satisfiability(int u, int v, int dist, string regex_op) {
-    if (regex_op.size() == 0) {
-        // empty string
-        return (dist == 1);
-    } else if (regex_op == "+") {
-        return true;
+int find_limit(string s) {
+    int len = s.size();
+    int limit = 0;
+    if (len == 0) {
+        limit = 1;
+    } else if (len == 1) {
+        limit = INF;
     } else {
-        // c<k type
-        int k = 0;
-        // start from third character since first 2 are '<='
-        for (int i = 2; i < regex_op.size(); i++) {
-            // extract `k` from string
-            k = k * 10 + regex_op[i] - '0';
+        for (int i = 0; i < s.size(); i++) {
+            if (!isalnum(s[i]))
+                continue;
+            limit = limit * 10 + s[i] - '0';
         }
-        return (dist <= k);
     }
-    return false;
+    return limit;
 }
 
 
@@ -294,6 +315,7 @@ unordered_set< pair<int, int>, pair_hash> recursive_search(
      * This function recursively evaluates the query
      */
     int index_of_min_freq_color = find_color_with_min_frequency(regex_colors, color_frequency);
+    //cout << index_of_min_freq_color << endl;
     int color = regex_colors[index_of_min_freq_color] - 'a';
 
     // extract the data for `color`
@@ -303,11 +325,11 @@ unordered_set< pair<int, int>, pair_hash> recursive_search(
 
     // filter all pairs of vertices satisfying the
     // constraint due to corresponding op symbol
+    int limit = find_limit(regex_ops[index_of_min_freq_color]);
     vector<int> candidate_begin;
     vector<int> candidate_end;
     for (int i = 0; i < 3 * N; i += 3) {
-        bool check = check_satisfiability(color_table[i], color_table[i + 1], color_table[i + 2], regex_ops[index_of_min_freq_color]);
-        if (check) {
+        if (!(color_table[i + 2] > limit)) {
             candidate_begin.push_back(color_table[i]);
             candidate_end.push_back(color_table[i + 1]);
         }
@@ -328,6 +350,7 @@ unordered_set< pair<int, int>, pair_hash> recursive_search(
         return res;
     } else if (index_of_min_freq_color == 0 && len >= 2) {
         int L = candidate_begin.size();
+        cout << L << " -- " << endl;
         unordered_set<int> next_begin_nodes;
         unordered_map<int, vector<int> > current_edges;
         // check for intersection between begin_nodes & candidate_begin
@@ -353,7 +376,6 @@ unordered_set< pair<int, int>, pair_hash> recursive_search(
                 res.insert(make_pair(new_starts[j], (*it).second));
             }
         }
-        return res;
     } else if (index_of_min_freq_color == len - 1) {
         int L = candidate_end.size();
         unordered_set<int> next_end_nodes;
@@ -380,7 +402,6 @@ unordered_set< pair<int, int>, pair_hash> recursive_search(
                 res.insert(make_pair((*it).first, new_ends[j]));
             }
         }
-        return res;
     } else {
         int L = candidate_begin.size();
         unordered_set< pair<int, int>, pair_hash > current_edges;
@@ -409,8 +430,8 @@ unordered_set< pair<int, int>, pair_hash> recursive_search(
                 }
             }
         }
-        return res;
     }
+    return res;
 }
 
 
@@ -419,18 +440,20 @@ void evaluate_query(unordered_set<int> begin_nodes, unordered_set<int> end_nodes
     vector<string> regex_ops;
     split_regex(regex, regex_colors, regex_ops);
     unordered_set< pair<int, int>, pair_hash > query_res = recursive_search(begin_nodes, end_nodes, color_frequency, regex_colors, regex_ops, fp);
-    for (auto it = query_res.begin(); it != query_res.end(); it++) {
-        cout << "(" << (*it).first << ", " << (*it).second << ")" << endl;
-    }
+    //for (auto it = query_res.begin(); it != query_res.end(); it++) {
+        //cout << "(" << (*it).first << ", " << (*it).second << ")" << endl;
+    //}
+    cout << query_res.size() << endl;
     return;
 }
 
 
 int main() {
-    freopen("../data/10k_graph.txt", "r", stdin);
+    freopen("../data/weinfei_graph.txt", "r", stdin);
     int versize, edgesize;
 
     cin >> versize >> edgesize >> n_colors;
+    //cout << versize << " -- " << edgesize << " -- " << n_colors << endl;
     vector<int> att1(versize); //Year of birth
     vector<string> att2(versize); // Name
     vector<string> att3(versize); // Sex
