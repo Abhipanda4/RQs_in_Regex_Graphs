@@ -278,19 +278,22 @@ void evaluate_query(
     vector<string> regex_ops;
     split_regex(regex, regex_colors, regex_ops);
     int start_node;
+    int ans = 0;
     for (auto it1 = begin_nodes.begin(); it1 != begin_nodes.end(); it1++) {
         start_node = *it1;
         unordered_set<int> reachable_set = BFS(versize, *it1, end_nodes, regex_colors, regex_ops, adj, rev_adj);
         for (auto it2 = reachable_set.begin(); it2 != reachable_set.end(); it2++) {
-            cout << "(" << *it1 << ", " << *it2 << ")" << endl;
+            //cout << "(" << *it1 << ", " << *it2 << ")" << endl;
+            ans += 1;
         }
     }
+    cout << ans << endl;
     return;
 }
 
 
 int main() {
-    freopen("../data/10k_graph.txt", "r", stdin);
+    freopen("../data/weinfei_graph.txt", "r", stdin);
     int versize, edgesize;
 
     cin >> versize >> edgesize >> n_colors;
