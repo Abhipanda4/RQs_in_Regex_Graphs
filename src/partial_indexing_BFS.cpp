@@ -2,11 +2,21 @@
 #include <chrono>
 
 using namespace std;
-#define  NCOLORS               10
 #define  INF                   INT_MAX
-#define  NUM_SIMULATIONS       1000
-#define  THRESHOLD_NUM_NODES   20
+#define  EXP                   2.71828
 
+int hit = 0;
+int miss = 0;
+int called = 0;
+int NUM_SIMULATIONS = 100;
+int THRESHOLD_NUM_NODES = 1000;
+int NCOLORS = 10;
+
+struct pair_hash {
+    inline std::size_t operator()(const std::pair<int,int> & v) const {
+        return v.first * 37 + v.second;
+    }
+};
 
 bool matchstr(string att, string op, string val) {
     /*
@@ -119,7 +129,9 @@ vector <int> find_candidate_nodes(
         vector<int> &att1,
         vector<string> &att2,
         vector<string> &att3,
-        vector<string> &att4,
+        vector<int> &att4,
+        vector<int> &att5,
+        vector<int> &att6,
         int versize
         ) {
 
@@ -130,7 +142,9 @@ vector <int> find_candidate_nodes(
         if (matchnum(att1[i], attrib_ops[0], attrib_ops[1])
             && matchstr(att2[i], attrib_ops[2], attrib_ops[3])
             && matchstr(att3[i], attrib_ops[4], attrib_ops[5])
-            && matchstr(att4[i], attrib_ops[6], attrib_ops[7])) {
+            && matchnum(att4[i], attrib_ops[6], attrib_ops[7])
+            && matchnum(att5[i], attrib_ops[8], attrib_ops[9])
+            && matchnum(att6[i], attrib_ops[10], attrib_ops[11])) {
             // node i staisfies all attribute constraints
             // so it is an eligible candidate for the query
             match_u.push_back(i);
@@ -184,29 +198,41 @@ unordered_set<int> find_next_set(
         vector< vector< pair<int, char> > > &adj,
         char color,
         string op,
-        unordered_map<int, vector< vector< pair<int, int> > > > &color_table) {
+        unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> &color_table
+        ) {
     /*
      * Finds all vertices that are reachable from the nodes
      * of `curr_set` with given `color` edges and satisfying
      * the `op` constraints
      */
+
+
     int limit = find_limit(op);
     unordered_set<int> valid_set;
     int curr_vertex;
     for (auto it = curr_set.begin(); it != curr_set.end(); it++) {
+        /********************DEBUG***************************/
+        ::called += 1;
+        /********************DEBUG***************************/
         curr_vertex = *it;
-        auto neighbors = color_table.find(curr_vertex);
+        //cout << curr_vertex << " ** " << color << endl;
+        auto neighbors = color_table.find(make_pair(curr_vertex, color));
         if (neighbors != color_table.end()) {
-            auto tmp = neighbors->second;
-            auto candidates = *(tmp.begin() + (color - 'a'));
-            for (auto nbr = candidates.begin(); nbr != candidates.end(); nbr++) {
-                pair<int, int> edge = *nbr;
-                int dist = edge.second;
-                if (dist <= limit) {
-                    valid_set.insert(edge.first);
-                }
+            // we have found a popular pair
+
+            /********************DEBUG***************************/
+            ::hit += 1;
+            /********************DEBUG***************************/
+
+            auto adjacency = neighbors->second;
+            int N = adjacency.size();
+            int i = 0;
+            while (adjacency[i].second <= limit && i < N) {
+                valid_set.insert(adjacency[i].first);
+                i += 1;
             }
         } else {
+            ::miss += 1;
             queue< pair<int, int> > BFS_queue;
             BFS_queue.push(make_pair(curr_vertex, 0));
             vector<bool> visited(versize, false);
@@ -215,15 +241,15 @@ unordered_set<int> find_next_set(
             while (!BFS_queue.empty()) {
                 pair<int, int> root = BFS_queue.front();
                 BFS_queue.pop();
-                // insert into queue all unvisited vertices that are
-                // connected with valid colored edges from the root
-                if (root.second <= limit && root.second > 0) {
+                if (root.second > 0) {
                     valid_set.insert(root.first);
                 }
                 for (auto nbr = adj[root.first].begin(); nbr != adj[root.first].end(); nbr++) {
                     pair<int, int> edge = *nbr;
                     if (!visited[edge.first]) {
-                        if (edge.second == color) {
+                        if (edge.second == color && root.second < limit) {
+                            // insert into queue all unvisited vertices that are
+                            // connected with valid colored edges from the root
                             BFS_queue.push(make_pair(edge.first, root.second + 1));
                             visited[edge.first] = true;
                         }
@@ -266,11 +292,10 @@ unordered_set<int> BFS(
         vector<char> &regex_colors,
         vector<string> &regex_ops,
         vector<vector<pair<int, char> > > &adj,
-        vector<vector<pair<int, char> > > &rev_adj,
-        unordered_map<int, vector< vector< pair<int, int> > > > &color_table_forward,
-        unordered_map<int, vector< vector< pair<int, int> > > > &color_table_backward) {
+        unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> &color_table
+        ) {
     /*
-     * Main function which performs bidirectional BFS traversal
+     * Main function which performs BFS traversal
      */
     unordered_set<int> start_reachable;
     unordered_set<int> start_reachable_next;
@@ -280,7 +305,7 @@ unordered_set<int> BFS(
     int regex_len = regex_colors.size();
 
     for (int i = 0; i < regex_len; i++) {
-        start_reachable_next = find_next_set(versize, start_reachable, adj, regex_colors[i], regex_ops[i], color_table_forward);
+        start_reachable_next = find_next_set(versize, start_reachable, adj, regex_colors[i], regex_ops[i], color_table);
         if (start_reachable_next.size() == 0)
             return result;
         start_reachable = start_reachable_next;
@@ -288,209 +313,351 @@ unordered_set<int> BFS(
     return find_intersection(start_reachable, end_nodes);
 }
 
+void BFS_util(
+        int versize,
+        unordered_set<int> &begin_nodes,
+        unordered_set<int> &end_nodes,
+        vector<char> &regex_colors,
+        vector<string> &regex_ops,
+        vector< vector< pair<int, char> > > &adj,
+        unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> &color_table,
+        bool is_reverse
+        ) {
+    /*
+     * Utility function which calls the BFS function to evaluate query
+     * and also prints the result
+     */
+    int start_node;
+    unordered_set<int> reachable_set;
+    int ans = 0;
+    for (auto it1 = begin_nodes.begin(); it1 != begin_nodes.end(); it1++) {
+        start_node = *it1;
+        reachable_set = BFS(versize, *it1, end_nodes, regex_colors, regex_ops, adj, color_table);
+        for (auto it2 = reachable_set.begin(); it2 != reachable_set.end(); it2++) {
+            if (!is_reverse) {
+                //cout << "(" << *it1 << ", " << *it2 << ")" << endl;
+                ans += 1;
+            } else {
+                //cout << "(" << *it2 << ", " << *it1 << ")" << endl;
+                ans += 1;
+            }
+        }
+    }
+    cout << ans << endl;
+}
 
 void evaluate_query(
         int versize,
-        unordered_set<int> begin_nodes,
-        unordered_set<int> end_nodes,
+        unordered_set<int> &begin_nodes,
+        unordered_set<int> &end_nodes,
         string regex,
         vector< vector< pair<int, char> > > &adj,
         vector< vector< pair<int, char> > > &rev_adj,
-        unordered_map<int, vector< vector< pair<int, int> > > > &color_table_forward,
-        unordered_map<int, vector< vector< pair<int, int> > > > &color_table_backward) {
+        unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> &color_table_forward,
+        unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> &color_table_backward
+        ) {
     /*
-     * Utility Function to Print the query result
+     * Utility Function to extract colors and ops from regex and decide the direction of BFS
      */
     vector<char> regex_colors;
     vector<string> regex_ops;
     split_regex(regex, regex_colors, regex_ops);
-    int start_node, end_node;
-
-    //cout << "------------------------------------------------" << endl;
-    //for (auto it=color_table_forward.begin(); it != color_table_forward.end(); it++) {
-        //cout << "Vertex: " << it->first << endl;
-        //auto nbrs = it->second;
-        //for (auto it2 = nbrs.begin(); it2 != nbrs.end(); it2++) {
-            //for (auto it3 = (*it2).begin(); it3 != (*it2).end(); it3++) {
-                //cout << (*it3).first << " -- " << (*it3).second << endl;
-            //}
-        //}
-    //}
-    //cout << "------------------------------------------------" << endl;
-
-    for (auto it1 = begin_nodes.begin(); it1 != begin_nodes.end(); it1++) {
-        start_node = *it1;
-        unordered_set<int> reachable_set = BFS(versize, *it1, end_nodes, regex_colors, regex_ops, adj, rev_adj, color_table_forward, color_table_backward);
-        for (auto it2 = reachable_set.begin(); it2 != reachable_set.end(); it2++) {
-            cout << "(" << *it1 << ", " << *it2 << ")" << endl;
-        }
+    if (begin_nodes.size() < end_nodes.size()) {
+        // search in forward direction
+        BFS_util(versize, begin_nodes, end_nodes, regex_colors, regex_ops, adj, color_table_forward, false);
+    } else {
+        // search in backward direction
+        // reverse the colors and ops
+        reverse(regex_colors.begin(), regex_colors.end());
+        reverse(regex_ops.begin(), regex_ops.end());
+        BFS_util(versize, end_nodes, begin_nodes, regex_colors, regex_ops, rev_adj, color_table_backward, true);
     }
-
-    /********************DEBUG***************************/
-    //unordered_set<int> reachable_set = BFS(versize, 0, end_nodes, regex_colors, regex_ops, adj, rev_adj, color_table_forward, color_table_backward);
-    //for (auto it2 = reachable_set.begin(); it2 != reachable_set.end(); it2++) {
-        //cout << "(" << 0 << ", " << *it2 << ")" << endl;
-    //}
-    /********************DEBUG***************************/
     return;
 }
 
+/*
+ ******************************************************************************
+ **-----------------------MONTE CARLO FRAMEWORK START--------------------------
+ ******************************************************************************
+ */
 
-vector<float> find_normalized_degree(int versize, vector< vector< pair<int, char> > > &adj) {
-    vector<float> normalized_degree(versize, 0);
-    for (int i = 0; i < versize; i++) {
-        normalized_degree[i] = adj[i].size();
-    }
-    int max_degree = *max_element(normalized_degree.begin(), normalized_degree.end());
-    for (int i = 0; i < versize; i++) {
-        normalized_degree[i] /= max_degree;
-    }
-    return normalized_degree;
-}
-
-vector<int> find_path(int u, int v, int versize, vector< vector< pair<int, char> > > &adj) {
-    vector<int> parent(versize, -1);
-    vector<bool> visited(versize, false);
-    queue<int> q;
-    q.push(u);
-    visited[u] = true;
-    while (!visited[v] && !q.empty()) {
-        int curr_vertex = q.front();
-        q.pop();
-        for (auto it = adj[curr_vertex].begin(); it != adj[curr_vertex].end(); it++) {
-            pair<int, int> edge = *it;
-            if (!visited[edge.first]) {
-                q.push(edge.first);
-                visited[edge.first] = true;
-                parent[edge.first] = curr_vertex;
-            }
-        }
-    }
-    vector<int> path;
-    if (visited[v]) {
-        // backtrace
-        int curr_vertex = v;
-        while (curr_vertex != u) {
-            curr_vertex = parent[curr_vertex];
-            path.push_back(curr_vertex);
-        }
-    }
-    return path;
-}
-
-bool comparator(pair<int, float> a, pair<int, float> b) {
-    return (a.second >= b.second);
-}
-
-vector<int> argsort(vector<float> &X) {
+template <typename T>
+vector<int> argsort(vector<T> &X) {
     int N = X.size();
-    vector< pair<int, float> > index_pair;
-    for (int i = 0; i < N; i++) {
-        index_pair.push_back(make_pair(i, X[i]));
-    }
-    sort(index_pair.begin(), index_pair.end(), comparator);
-    vector<int> sorted_indices;
-    for (int i = 0; i < N; i++) {
-        sorted_indices.push_back(index_pair[i].first);
-    }
+    vector<int> sorted_indices(N);
+    iota(sorted_indices.begin(), sorted_indices.end(), 0);
+
+    sort(sorted_indices.begin(), sorted_indices.end(),
+            [&X](int i, int j) -> bool {return X[i] < X[j];});
     return sorted_indices;
 }
 
-unordered_set<int> monte_carlo(int versize, vector< vector< pair<int, char> > > &adj) {
-    unordered_set<int> result;
-    vector<float> ranking(versize, 0);
-    // run monte carlo sampling
-    for (int i = 0; i < NUM_SIMULATIONS; i++) {
-        int u = rand() % versize;
-        int v = rand() % versize;
-        while (v == u) {
-            // required so that u and v are distinct
-            v = rand() % versize;
-        }
-        vector<int> path = find_path(u, v, versize, adj);
-        for (auto it = path.begin(); it != path.end(); it++) {
-            ranking[*it] += 1;
+template <typename T>
+T find_Kth_largest(vector<T> &X, int k) {
+    /*
+     * Function to find kth largest number in a vector
+     */
+    //cout << "finding kth largest number..." << endl;
+    sort(X.begin(), X.end(), greater<int>());
+    return *(X.begin() + k - 1);
+}
+
+template <typename T>
+pair<int, char> find_largest(vector< vector<T> > &X) {
+    /*
+     * Returns the pair with largest value in a 2D vector matrix
+     */
+    int rows = X.size();
+    int cols = X[0].size();
+    T largest_till_now = X[0][0];
+    //cout << largest_till_now << " ** " << endl;
+    int u = 0;
+    int c = 0;
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            if (X[i][j] > largest_till_now) {
+                largest_till_now = X[i][j];
+                u = j;
+                c = i;
+            }
         }
     }
-    vector<float> degree = find_normalized_degree(versize, adj);
-    float max_rank = *max_element(ranking.begin(), ranking.end());
-    for (int i = 0; i < versize; i++) {
-        ranking[i] = degree[i] + ranking[i] / max_rank;
+    X[c][u] = -1;
+    return make_pair(u, (char)(c + 'a'));
+}
+
+unordered_set<int> find_reachable_nodes(
+        int node,
+        int color,
+        vector< vector< pair<int, char> > > &rev_adj,
+        vector<bool> &visited
+        ) {
+    /*
+     * This function returns all nodes that are reachable fron `node`
+     * only using edges of `color` label
+     */
+    unordered_set<int> valid_set;
+    queue<int> BFS_queue;
+    BFS_queue.push(node);
+    visited[node] = true;
+
+    while (!BFS_queue.empty()) {
+        int root = BFS_queue.front();
+        // anything entering the queue is reachable !!
+        valid_set.insert(root);
+        BFS_queue.pop();
+        for (auto nbr = rev_adj[root].begin(); nbr != rev_adj[root].end(); nbr++) {
+            pair<int, char> edge = *nbr;
+            if (!visited[edge.first]) {
+                if (edge.second - 'a' == color) {
+                    BFS_queue.push(edge.first);
+                    visited[edge.first] = true;
+                }
+            }
+        }
     }
-    vector<int> sorted_nodes = argsort(ranking);
+    return valid_set;
+}
+
+void assign_min_label(
+        int root_node,
+        int color,
+        vector< vector< pair<int, char> > > &rev_adj,
+        vector<float> &node_labels,
+        vector< vector<float> > &min_labels,
+        vector<bool> &visited
+        ) {
+    /*
+     * Perform a BFS traversal to find all reachable nodes
+     * Assign the label for root node to all reachable nodes
+     * since it will be the lowest
+     */
+    unordered_set<int> reachable_set = find_reachable_nodes(root_node, color, rev_adj, visited);
+    for (int node : reachable_set) {
+        assert(min_labels[color][node] == -1);
+        min_labels[color][node] = node_labels[root_node];
+    }
+}
+
+
+vector< vector<float> > compute_min_label(
+        int versize,
+        vector<float> &node_labels,
+        vector< vector< pair<int, char> > > &rev_adj
+        ) {
+    /*
+     * Function to compute the minimum label for each node
+     * Min-Label is defined as: minL(v) = min{L(x) | x is reachable from v}
+     * Time Complexity: O(m + n)
+     */
+    vector<int> sorted_nodes = argsort(node_labels);
+    vector<float> tmp(versize, -1);
+    vector< vector<float> > min_labels(NCOLORS, tmp);
+    for (int col = 0; col < NCOLORS; col++) {
+        vector<bool> visited(versize, false);
+        for (auto it = sorted_nodes.begin(); it != sorted_nodes.end(); it++) {
+            int node = *it;
+            if (!visited[node]) {
+                assign_min_label(node, col, rev_adj, node_labels, min_labels, visited);
+            }
+        }
+    }
+    return min_labels;
+}
+
+
+vector< pair<int, char> > monte_carlo(
+        int versize,
+        vector< vector< pair<int, char> > > &adj,
+        vector< vector< pair<int, char> > > &rev_adj
+        ) {
+    /*
+     * A randomized framework to select the most popular
+     * (node, color) pairs. Uses number of reachable nodes
+     * as a measure of popularity.
+     * The normal version of algorithm for estimating
+     * size of reachabilty set can be found at:
+     * https://www.sciencedirect.com/science/article/pii/S0022000097915348
+     */
+    vector< pair<int, char> > result;
+    vector<float> node_labels(versize, 0);
+    vector< vector< vector<float> > > min_label_store(NUM_SIMULATIONS);
+    for (int k = 0; k < NUM_SIMULATIONS; k++) {
+        // assign random no selected uniformly and independently from
+        // (0, 1] to each vertex
+        srand(k);
+        //cout << "Running simulation " << k << "... " << endl;
+        for (int i = 0; i < versize; i++) {
+            node_labels[i] = (1 + (rand() % 10000)) / 10000.0;
+        }
+        // compute min_label for each (node, color) pair
+        vector< vector<float> > min_labels = compute_min_label(versize, node_labels, rev_adj);
+        min_label_store[k] = min_labels;
+    }
+
+    // Best estimate for size of reachability set is 1/t* - 1 where:
+    // t* = (NUM_SIMULATIONS / e)th largest value among min_label_store[:][c][u]
+    vector<float> tmp(versize);
+    vector< vector<float> > best_labels(NCOLORS, tmp);
+    for (int c = 0; c < NCOLORS; c++) {
+        for (int u = 0; u < versize; u++) {
+            vector<float> candidate_min_labels;
+            for (int k = 0; k < NUM_SIMULATIONS; k++) {
+                //cout << c << " -- " << u << " Minima: " << min_label_store[k][c][u] << endl;
+                candidate_min_labels.push_back(min_label_store[k][c][u]);
+            }
+            //cout << "****************************************************************" << endl;
+            best_labels[c][u] = find_Kth_largest(candidate_min_labels, NUM_SIMULATIONS / EXP);
+        }
+    }
+    // compute size of reachability sets
+    for (int c = 0; c < NCOLORS; c++) {
+        for (int u = 0; u < versize; u++) {
+            assert(best_labels[c][u] != 0);
+            best_labels[c][u] = 1.0 / best_labels[c][u] - 1;
+
+            /********************DEBUG***************************/
+            //vector<bool> visited(versize, false);
+            //int real_size = find_reachable_nodes(u, c,  adj, visited).size();
+            //cout << "Actual: " << real_size << ", Predicted: " << best_labels[c][u] << endl;
+            /********************DEBUG***************************/
+
+        }
+    }
+
+    // select THRESHOLD_NUM_NODES pairs with largest reachability sets
+    // cardinality for calculating partial transitive closure
     for (int i = 0; i < THRESHOLD_NUM_NODES; i++) {
-        result.insert(sorted_nodes[i]);
+        pair<int, char> popular_pair = find_largest(best_labels);
+        result.push_back(popular_pair);
     }
     return result;
 }
 
-
-unordered_map<int, vector< vector< pair<int, int> > > > partial_BFS_mat_build(
+unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> partial_BFS_mat_build(
         int versize,
-        vector< vector< pair<int, char> > > &adj) {
-
-    unordered_set<int> popular_nodes = monte_carlo(versize, adj);
-    unordered_map<int, vector< vector< pair<int, int> > > > result;
-    int curr_vertex;
-    for (auto it = popular_nodes.begin(); it != popular_nodes.end(); it++) {
-        curr_vertex = *it;
-        vector< vector< pair<int, int> > > nbr_list(NCOLORS);
-        for (int col = 0; col < NCOLORS; col++) {
-            // Perform BFS using a queue of (node, distance) pairs
-            queue< pair<int,int> > q;
-            q.push(make_pair(curr_vertex, 0));
-            vector<bool> flag(versize, 0);
-            flag[curr_vertex] = true;
-            bool cyclefound = false;
-            while (!q.empty()) {
-                pair<int, int> v = q.front();
-                q.pop();
-                if (v.first != curr_vertex) {
-                    // new vertex found! Store its distance
-                    nbr_list[col].push_back(make_pair(v.first, v.second));
-                }
-                for (auto it = adj[v.first].begin(); it != adj[v.first].end(); ++it) {
-                    pair<int, int> edge = *it;
-
-                    /********************DEBUG***************************/
-                    //cout << curr_vertex << " -- " << edge.first << " -- " << edge.second - 'a' << "  ***" << endl;
-                    /********************DEBUG***************************/
-
-                    if (edge.second - 'a' == col) {
-                        if (!cyclefound && edge.first == curr_vertex) {
-                            // first self loop; shortest path from curr_vertex to itself found
-                            nbr_list[col].push_back(make_pair(curr_vertex, v.second + 1));
-                            cyclefound = true;
-                            continue;
-                        }
-                        if (!flag[edge.first]) {
-                            // push all unvisited vertices connected to the node
-                            // with current color into the queue
-                            // Also, distance is increased by 1
-                            q.push(make_pair(edge.first, v.second + 1));
-                            // mark the node visited
-                            flag[edge.first] = true;
-                        }
+        vector< vector< pair<int, char> > > &adj,
+        vector< vector< pair<int, char> > > &rev_adj) {
+    /*
+     * Function to build a (partial) lookup table.
+     * The key to this table is a (node, color) pair;
+     * the table stores all nodes reachable from key node
+     * using only edges of key color. The keys are determined using
+     * the montecarlo function
+     */
+    vector< pair<int, char> > popular_nodes = monte_carlo(versize, adj, rev_adj);
+    unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> table;
+    for (auto pop_node = popular_nodes.begin(); pop_node != popular_nodes.end(); pop_node++) {
+        pair<int, char> key = *pop_node;
+        //cout << "Node: " << key.first << " -- " << "Color: " << key.second << endl;
+        int curr_vertex = key.first;
+        int col = key.second - 'a';
+        vector< pair<int, int> > res;
+        // perform BFS using a queue of (node, distance) pairs
+        queue< pair<int,int> > q;
+        q.push(make_pair(curr_vertex, 0));
+        vector<bool> visited(versize, 0);
+        visited[curr_vertex] = true;
+        //bool cyclefound = false;
+        while (!q.empty()) {
+            pair<int, int> v = q.front();
+            q.pop();
+            if (v.first != curr_vertex) {
+                // new vertex found! Store its distance
+                res.push_back(make_pair(v.first, v.second));
+            }
+            for (auto it = adj[v.first].begin(); it != adj[v.first].end(); it++) {
+                pair<int, int> edge = *it;
+                if (edge.second - 'a' == col) {
+                    //if (!cyclefound && edge.first == curr_vertex) {
+                        // first self loop; shortest path from curr_vertex to itself found
+                        //res.push_back(make_pair(curr_vertex, v.second + 1));
+                        //cyclefound = true;
+                        //continue;
+                    //}
+                    if (!visited[edge.first]) {
+                        // push all unvisited vertices connected to the node
+                        // with current color into the queue
+                        // Also, distance is increased by 1
+                        q.push(make_pair(edge.first, v.second + 1));
+                        // mark the node visited
+                        visited[edge.first] = true;
                     }
                 }
             }
         }
-        result[curr_vertex] = nbr_list;
+        if (res.size() == 0) {
+            continue;
+        }
+        sort(res.begin(), res.end(),
+                [](pair<int, int> &a, pair<int, int> &b) {
+                    return (a.second < b.second);
+                });
+        table[key] = res;
     }
-    return result;
+    return table;
 }
 
-int main() {
-    freopen("../data/graph.txt", "r", stdin);
+/*
+ ******************************************************************************
+ **-----------------------MONTE CARLO FRAMEWORK END----------------------------
+ ******************************************************************************
+ */
+
+
+int main(int argc, char* argv[]) {
+    freopen("../data/weinfei_graph.txt", "r", stdin);
     int versize, edgesize;
 
-    cin >> versize >> edgesize;
-    vector<int> att1(versize); // Unique ID
+    cin >> versize >> edgesize >> NCOLORS;
+    vector<int> att1(versize); //Year of birth
     vector<string> att2(versize); // Name
-    vector<string> att3(versize); // Country
-    vector<string> att4(versize); // Sex
+    vector<string> att3(versize); // Sex
+    vector<int> att4(versize); // num_posts
+    vector<int> att5(versize); // num_friends
+    vector<int> att6(versize); // UID
     for (int i = 0; i < versize; i++) {
-        cin >> att1[i] >> att2[i] >> att3[i] >> att4[i];
+        cin >> att1[i] >> att2[i] >> att3[i] >> att4[i] >> att5[i] >> att6[i];
     }
 
     vector< vector< pair<int, char> > > adj, rev_adj;
@@ -505,8 +672,10 @@ int main() {
     }
 
     // Build the partial index
-    unordered_map<int, vector< vector< pair<int, int> > > > partial_BFS_mat_forward = partial_BFS_mat_build(versize, adj);
-    unordered_map<int, vector< vector< pair<int, int> > > > partial_BFS_mat_backward = partial_BFS_mat_build(versize, rev_adj);
+    unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash>
+        partial_BFS_mat_forward = partial_BFS_mat_build(versize, adj, rev_adj);
+    unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash>
+        partial_BFS_mat_backward = partial_BFS_mat_build(versize, rev_adj, adj);
 
     string uatt, vatt, regex;
     int querysize;
@@ -524,14 +693,16 @@ int main() {
         num_queries += 1;
         cin >> uatt >> vatt >> regex;
         auto start = std::chrono::high_resolution_clock::now();
-        vector<int> begin = find_candidate_nodes(uatt, att1, att2, att3, att4, versize);
-        vector<int> end = find_candidate_nodes(vatt, att1, att2, att3, att4, versize);
+        vector<int> begin = find_candidate_nodes(uatt, att1, att2, att3, att4, att5, att6, versize);
+        vector<int> end = find_candidate_nodes(vatt, att1, att2, att3, att4, att5, att6, versize);
         unordered_set<int> begin_nodes(begin.begin(), begin.end());
         unordered_set<int> end_nodes(end.begin(), end.end());
-        evaluate_query(versize, begin_nodes, end_nodes, regex, adj, rev_adj, partial_BFS_mat_forward, partial_BFS_mat_backward);
+        evaluate_query(versize, begin_nodes, end_nodes, regex, adj, rev_adj,
+                partial_BFS_mat_forward, partial_BFS_mat_backward);
         auto diff = std::chrono::high_resolution_clock::now() - start;
         auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
         cout << "Time Taken: " << t1.count() << endl;
     }
+    cout << "Num Calls: " << called <<"; Num Hits: " << hit << endl;
     return 0;
 }
