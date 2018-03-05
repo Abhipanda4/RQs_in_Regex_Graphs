@@ -10,9 +10,12 @@ int miss = 0;
 int called = 0;
 int NUM_SIMULATIONS = 100;
 int THRESHOLD_NUM_NODES = 1000;
-int NCOLORS = 10;
+int NCOLORS = -1;
 
 struct pair_hash {
+    /*
+     * Custom hash function for hashing pairs
+     */
     inline std::size_t operator()(const std::pair<int,int> & v) const {
         return v.first * 37 + v.second;
     }
@@ -134,6 +137,10 @@ vector <int> find_candidate_nodes(
         vector<int> &att6,
         int versize
         ) {
+    /*
+     * Function to determine all the nodes that satisfy
+     * the queery predicate
+     */
 
     vector<string> attrib_ops = find_attribs(matstr);
     vector<int> match_u;
@@ -153,35 +160,23 @@ vector <int> find_candidate_nodes(
     return match_u;
 }
 
-
-bool check_satisfiability(int u, int v, int dist, string regex_op) {
-    if (regex_op.size() == 0) {
-        // empty string
-        return (dist == 1);
-    } else if (regex_op == "+") {
-        return true;
-    } else {
-        // c<k type
-        int k = 0;
-        for (int i = 0; i < regex_op.size(); i++) {
-            if (!isalnum(regex_op[i]))
-                continue;
-            k = k * 10 + regex_op[i] - '0';
-        }
-        return (dist <= k);
-    }
-    return false;
-}
-
-
 int find_limit(string s) {
+    /*
+     * All regular expressions in our grammar can be converted into:
+     * c <= K form since the nodes being considered will always have
+     * atleast one connection(c > 1 always).
+     * This function finds the upper limit for how many edges can be considered(K)
+     */
     int len = s.size();
     int limit = 0;
     if (len == 0) {
+        // c -> c <= 1
         limit = 1;
     } else if (len == 1) {
+        // c+ -> c <= INF
         limit = INF;
     } else {
+        // c <= k form already
         for (int i = 0; i < s.size(); i++) {
             if (!isalnum(s[i]))
                 continue;
@@ -205,7 +200,6 @@ unordered_set<int> find_next_set(
      * of `curr_set` with given `color` edges and satisfying
      * the `op` constraints
      */
-
 
     int limit = find_limit(op);
     unordered_set<int> valid_set;
@@ -268,20 +262,25 @@ unordered_set<int> find_next_set(
 }
 
 
-unordered_set<int> find_intersection(unordered_set<int> set1, unordered_set<int> set2) {
-    unordered_set<int> result;
-    if (set1.size() <= set2.size()) {
-        for (auto it = set1.begin(); it != set1.end(); it++) {
-            if (set2.find(*it) != set2.end())
-                result.insert(*it);
-        }
-    } else {
-        for (auto it = set2.begin(); it != set2.end(); it++) {
-            if (set1.find(*it) != set1.end())
-                result.insert(*it);
+template <typename T>
+T  find_intersection(T &set1, T &set2) {
+    /*
+     * A utility function to find intersection of 2 sets.
+     * Iterates through the smaller set for improved efficiency.
+     * Hence, time complexity:
+     * O( min{size(set1), size(set2)} )
+     */
+    if (set1.size() > set2.size()) {
+        return find_intersection(set2, set1);
+    }
+    T result;
+    for (auto it = set1.begin(); it != set1.end(); it++) {
+        if (set2.find(*it) != set2.end()) {
+            result.insert(*it);
         }
     }
     return result;
+
 }
 
 
@@ -397,7 +396,6 @@ T find_Kth_largest(vector<T> &X, int k) {
     /*
      * Function to find kth largest number in a vector
      */
-    //cout << "finding kth largest number..." << endl;
     sort(X.begin(), X.end(), greater<int>());
     return *(X.begin() + k - 1);
 }
@@ -405,7 +403,7 @@ T find_Kth_largest(vector<T> &X, int k) {
 template <typename T>
 pair<int, char> find_largest(vector< vector<T> > &X) {
     /*
-     * Returns the pair with largest value in a 2D vector matrix
+     * Returns the (row, col) pair with largest value in a 2D vector matrix
      */
     int rows = X.size();
     int cols = X[0].size();
@@ -423,6 +421,7 @@ pair<int, char> find_largest(vector< vector<T> > &X) {
         }
     }
     X[c][u] = -1;
+    //cout << largest_till_now << " -- " << u << " -- " << (char)(c + 'a') << endl;
     return make_pair(u, (char)(c + 'a'));
 }
 
@@ -473,6 +472,7 @@ void assign_min_label(
      * since it will be the lowest
      */
     unordered_set<int> reachable_set = find_reachable_nodes(root_node, color, rev_adj, visited);
+
     for (int node : reachable_set) {
         assert(min_labels[color][node] == -1);
         min_labels[color][node] = node_labels[root_node];
@@ -527,9 +527,17 @@ vector< pair<int, char> > monte_carlo(
         // (0, 1] to each vertex
         srand(k);
         //cout << "Running simulation " << k << "... " << endl;
-        for (int i = 0; i < versize; i++) {
-            node_labels[i] = (1 + (rand() % 10000)) / 10000.0;
+        // A fancy way to generate an array of **UNIQUE** random numbers
+        unordered_set<int> unique_rand;
+        while (unique_rand.size() < versize) {
+            unique_rand.insert(1 + rand() % 100000);
         }
+        int index = 0;
+        for (auto it = unique_rand.begin(); it != unique_rand.end(); it++) {
+            node_labels[index] = *it / 100000.0;
+            index += 1;
+        }
+        random_shuffle(node_labels.begin(), node_labels.end());
         // compute min_label for each (node, color) pair
         vector< vector<float> > min_labels = compute_min_label(versize, node_labels, rev_adj);
         min_label_store[k] = min_labels;
@@ -542,12 +550,14 @@ vector< pair<int, char> > monte_carlo(
     for (int c = 0; c < NCOLORS; c++) {
         for (int u = 0; u < versize; u++) {
             vector<float> candidate_min_labels;
+            //cout << c << " -- " << u << " -- ";
             for (int k = 0; k < NUM_SIMULATIONS; k++) {
-                //cout << c << " -- " << u << " Minima: " << min_label_store[k][c][u] << endl;
+                //cout << min_label_store[k][c][u] << " | ";
                 candidate_min_labels.push_back(min_label_store[k][c][u]);
             }
             //cout << "****************************************************************" << endl;
             best_labels[c][u] = find_Kth_largest(candidate_min_labels, NUM_SIMULATIONS / EXP);
+            //cout << best_labels[c][u] << endl;
         }
     }
     // compute size of reachability sets
@@ -574,6 +584,43 @@ vector< pair<int, char> > monte_carlo(
     return result;
 }
 
+typedef struct Triplets {
+    Triplets(int _u, int _c, int _num_nodes) {
+        u = _u;
+        c = _c;
+        num_nodes = _num_nodes;
+    }
+    int u;
+    int c;
+    int num_nodes;
+} triplets;
+
+vector< pair<int, char> > find_real_pop_nodes(
+        int versize,
+        vector< vector< pair<int, char> > > &adj,
+        vector< vector< pair<int, char> > > &rev_adj
+        ) {
+    vector<triplets> store;
+    for (int c = 0; c < NCOLORS; c++) {
+        for (int u = 0; u < versize; u++) {
+            vector<bool> visited(versize);
+            int num_nodes = find_reachable_nodes(u, c, adj, visited).size();
+            triplets T(u, c, num_nodes);
+            store.push_back(T);
+        }
+    }
+    sort(store.begin(), store.end(),
+            [](triplets a, triplets b) {
+                return (a.num_nodes > b.num_nodes);
+            });
+    vector< pair<int, char> > result(THRESHOLD_NUM_NODES);
+    for (int i = 0; i < THRESHOLD_NUM_NODES; i++) {
+        result[i] = make_pair(store[i].u, (char)(store[i].c + 'a'));
+    }
+    //cout << result[1].first << " -- " << result[1].second << endl;
+    return result;
+}
+
 unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> partial_BFS_mat_build(
         int versize,
         vector< vector< pair<int, char> > > &adj,
@@ -586,7 +633,16 @@ unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> partial_BFS
      * the montecarlo function
      */
     vector< pair<int, char> > popular_nodes = monte_carlo(versize, adj, rev_adj);
+    /********************DEBUG***************************/
+    vector< pair<int, char> > real_popular_nodes = find_real_pop_nodes(versize, adj, rev_adj);
+    unordered_set<pair<int, char>, pair_hash> set1(popular_nodes.begin(), popular_nodes.end());
+    unordered_set<pair<int, char>, pair_hash> set2(real_popular_nodes.begin(), real_popular_nodes.end());
+    int num_intersection = find_intersection(set1, set2).size();
+    cout << num_intersection << " -- " << endl;
+    /********************DEBUG***************************/
+
     unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> table;
+    int decoy = 0;
     for (auto pop_node = popular_nodes.begin(); pop_node != popular_nodes.end(); pop_node++) {
         pair<int, char> key = *pop_node;
         //cout << "Node: " << key.first << " -- " << "Color: " << key.second << endl;
@@ -627,6 +683,7 @@ unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> partial_BFS
             }
         }
         if (res.size() == 0) {
+            decoy += 1;
             continue;
         }
         sort(res.begin(), res.end(),
