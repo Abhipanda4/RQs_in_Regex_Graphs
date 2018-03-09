@@ -287,13 +287,13 @@ void evaluate_query(
             ans += 1;
         }
     }
-    cout << ans << endl;
+    //cout << ans << endl;
     return;
 }
 
 
 int main() {
-    freopen("../data/weinfei_graph.txt", "r", stdin);
+    freopen("../temp_graph.txt", "r", stdin);
     int versize, edgesize;
 
     cin >> versize >> edgesize >> n_colors;
@@ -314,8 +314,8 @@ int main() {
     char color;
     for (int i = 0; i < edgesize; i++){
         cin >> u >> v >> color;
-        adj[u - 1].push_back(make_pair(v - 1,color));
-        rev_adj[v - 1].push_back(make_pair(u - 1,color));
+        adj[u].push_back(make_pair(v, color));
+        rev_adj[v].push_back(make_pair(u, color));
     }
 
     string uatt, vatt, regex;
@@ -337,7 +337,11 @@ int main() {
         evaluate_query(versize, begin_nodes, end_nodes, regex, adj, rev_adj);
         auto diff = std::chrono::high_resolution_clock::now() - start;
         auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
-        cout << "Time Taken: " << t1.count() << endl;
+        cout << t1.count();
+        if (querysize != 0) {
+            cout << ", ";
+        }
     }
+    cout << endl;
     return 0;
 }

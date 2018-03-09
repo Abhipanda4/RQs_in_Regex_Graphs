@@ -206,7 +206,7 @@ unordered_set<int> find_next_set(
     int curr_vertex;
     for (auto it = curr_set.begin(); it != curr_set.end(); it++) {
         /********************DEBUG***************************/
-        ::called += 1;
+        //::called += 1;
         /********************DEBUG***************************/
         curr_vertex = *it;
         //cout << curr_vertex << " ** " << color << endl;
@@ -215,7 +215,7 @@ unordered_set<int> find_next_set(
             // we have found a popular pair
 
             /********************DEBUG***************************/
-            ::hit += 1;
+            //::hit += 1;
             /********************DEBUG***************************/
 
             auto adjacency = neighbors->second;
@@ -226,7 +226,7 @@ unordered_set<int> find_next_set(
                 i += 1;
             }
         } else {
-            ::miss += 1;
+            //::miss += 1;
             queue< pair<int, int> > BFS_queue;
             BFS_queue.push(make_pair(curr_vertex, 0));
             vector<bool> visited(versize, false);
@@ -342,7 +342,7 @@ void BFS_util(
             }
         }
     }
-    cout << ans << endl;
+    //cout << ans << endl;
 }
 
 void evaluate_query(
@@ -634,11 +634,11 @@ unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> partial_BFS
      */
     vector< pair<int, char> > popular_nodes = monte_carlo(versize, adj, rev_adj);
     /********************DEBUG***************************/
-    vector< pair<int, char> > real_popular_nodes = find_real_pop_nodes(versize, adj, rev_adj);
-    unordered_set<pair<int, char>, pair_hash> set1(popular_nodes.begin(), popular_nodes.end());
-    unordered_set<pair<int, char>, pair_hash> set2(real_popular_nodes.begin(), real_popular_nodes.end());
-    int num_intersection = find_intersection(set1, set2).size();
-    cout << num_intersection << " -- " << endl;
+    //vector< pair<int, char> > real_popular_nodes = find_real_pop_nodes(versize, adj, rev_adj);
+    //unordered_set<pair<int, char>, pair_hash> set1(popular_nodes.begin(), popular_nodes.end());
+    //unordered_set<pair<int, char>, pair_hash> set2(real_popular_nodes.begin(), real_popular_nodes.end());
+    //int num_intersection = find_intersection(set1, set2).size();
+    //cout << "Num Intersection: " << num_intersection << endl;
     /********************DEBUG***************************/
 
     unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> table;
@@ -703,10 +703,11 @@ unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> partial_BFS
 
 
 int main(int argc, char* argv[]) {
-    freopen("../data/weinfei_graph.txt", "r", stdin);
+    freopen("../temp_graph.txt", "r", stdin);
     int versize, edgesize;
 
     cin >> versize >> edgesize >> NCOLORS;
+    //cout << versize << "  " << edgesize << " " << NCOLORS << endl;
     vector<int> att1(versize); //Year of birth
     vector<string> att2(versize); // Name
     vector<string> att3(versize); // Sex
@@ -724,8 +725,9 @@ int main(int argc, char* argv[]) {
     char color;
     for (int i = 0; i < edgesize; i++) {
         cin >> u >> v >> color;
-        adj[u - 1].push_back(make_pair(v - 1, color));
-        rev_adj[v - 1].push_back(make_pair(u - 1, color));
+        //cout << u << " -- " << v << " -- " << color << endl;
+        adj[u].push_back(make_pair(v, color));
+        rev_adj[v].push_back(make_pair(u, color));
     }
 
     // Build the partial index
@@ -758,8 +760,12 @@ int main(int argc, char* argv[]) {
                 partial_BFS_mat_forward, partial_BFS_mat_backward);
         auto diff = std::chrono::high_resolution_clock::now() - start;
         auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
-        cout << "Time Taken: " << t1.count() << endl;
+        cout << t1.count();
+        if (querysize != 0) {
+            cout << ", ";
+        }
     }
-    cout << "Num Calls: " << called <<"; Num Hits: " << hit << endl;
+    cout << endl;
+    //cout << "Num Calls: " << called <<"; Num Hits: " << hit << endl;
     return 0;
 }

@@ -350,7 +350,6 @@ unordered_set< pair<int, int>, pair_hash> recursive_search(
         return res;
     } else if (index_of_min_freq_color == 0 && len >= 2) {
         int L = candidate_begin.size();
-        cout << L << " -- " << endl;
         unordered_set<int> next_begin_nodes;
         unordered_map<int, vector<int> > current_edges;
         // check for intersection between begin_nodes & candidate_begin
@@ -443,13 +442,13 @@ void evaluate_query(unordered_set<int> begin_nodes, unordered_set<int> end_nodes
     //for (auto it = query_res.begin(); it != query_res.end(); it++) {
         //cout << "(" << (*it).first << ", " << (*it).second << ")" << endl;
     //}
-    cout << query_res.size() << endl;
+    //cout << query_res.size() << endl;
     return;
 }
 
 
 int main() {
-    freopen("../data/weinfei_graph.txt", "r", stdin);
+    freopen("../temp_graph.txt", "r", stdin);
     int versize, edgesize;
 
     cin >> versize >> edgesize >> n_colors;
@@ -469,7 +468,7 @@ int main() {
     char color;
     for (int i = 0; i < edgesize; i++){
         cin >> u >> v >> color;
-        adj[u - 1][color - 'a'].push_back(v - 1);
+        adj[u][color - 'a'].push_back(v);
     }
 
     int*** BFS_mat = (int***)malloc(n_colors * sizeof(int**));
@@ -506,7 +505,11 @@ int main() {
         evaluate_query(begin_nodes, end_nodes, color_frequency, regex, fp);
         auto diff = std::chrono::high_resolution_clock::now() - start;
         auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
-        cout << "Time Taken: " << t1.count() << endl;
+        cout << t1.count();
+        if (querysize != 0) {
+            cout << ", ";
+        }
     }
+    cout << endl;
     return 0;
 }

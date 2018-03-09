@@ -224,7 +224,7 @@ void matrix_build(vector<vector<vector<int> > > &adj, int versize, vector<vector
 }
 
 int main() {
-	freopen("../data/graph.txt","r",stdin);
+	freopen("../data/input.txt","r",stdin);
 	//freopen("data/output.txt","w",stdout);
 	int versize, edgesize;
 
