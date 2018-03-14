@@ -485,7 +485,7 @@ int main() {
     BFS_matrix_build(adj, versize, BFS_mat);
 
     int* color_frequency = (int*)malloc(n_colors * sizeof(int));
-    FILE* fp = fopen("../log/BFS_mat_1.txt", "r+");
+    FILE* fp = fopen("../BFS_index/trans_closure", "r+");
     save_BFS_matrix(BFS_mat, versize, color_frequency, fp);
 
     string uatt, vatt, regex;
