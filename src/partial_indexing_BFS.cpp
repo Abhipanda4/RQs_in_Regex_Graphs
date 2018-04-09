@@ -206,7 +206,7 @@ unordered_set<int> find_next_set(
     int curr_vertex;
     for (auto it = curr_set.begin(); it != curr_set.end(); it++) {
         /********************DEBUG***************************/
-        //::called += 1;
+        ::called += 1;
         /********************DEBUG***************************/
         curr_vertex = *it;
         //cout << curr_vertex << " ** " << color << endl;
@@ -215,7 +215,7 @@ unordered_set<int> find_next_set(
             // we have found a popular pair
 
             /********************DEBUG***************************/
-            //::hit += 1;
+            ::hit += 1;
             /********************DEBUG***************************/
 
             auto adjacency = neighbors->second;
@@ -226,7 +226,7 @@ unordered_set<int> find_next_set(
                 i += 1;
             }
         } else {
-            //::miss += 1;
+            ::miss += 1;
             queue< pair<int, int> > BFS_queue;
             BFS_queue.push(make_pair(curr_vertex, 0));
             vector<bool> visited(versize, false);
@@ -515,7 +515,7 @@ vector< pair<int, char> > monte_carlo(
      * A randomized framework to select the most popular
      * (node, color) pairs. Uses number of reachable nodes
      * as a measure of popularity.
-     * The normal version of algorithm for estimating
+     * The vanilla version of algorithm for estimating
      * size of reachabilty set can be found at:
      * https://www.sciencedirect.com/science/article/pii/S0022000097915348
      */
@@ -530,11 +530,11 @@ vector< pair<int, char> > monte_carlo(
         // A fancy way to generate an array of **UNIQUE** random numbers
         unordered_set<int> unique_rand;
         while (unique_rand.size() < versize) {
-            unique_rand.insert(1 + rand() % 100000);
+            unique_rand.insert(1 + rand() % 1000000);
         }
         int index = 0;
         for (auto it = unique_rand.begin(); it != unique_rand.end(); it++) {
-            node_labels[index] = *it / 100000.0;
+            node_labels[index] = *it / 1000000.0;
             index += 1;
         }
         random_shuffle(node_labels.begin(), node_labels.end());
@@ -703,69 +703,68 @@ unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> partial_BFS
 
 
 int main(int argc, char* argv[]) {
-    freopen("../temp_graph.txt", "r", stdin);
-    int versize, edgesize;
+    for (int MC_nodes = 1; MC_nodes <= 5; MC_nodes++) {
+        freopen(argv[1], "r", stdin);
+        int versize, edgesize;
 
-    cin >> versize >> edgesize >> NCOLORS;
-    //cout << versize << "  " << edgesize << " " << NCOLORS << endl;
-    vector<int> att1(versize); //Year of birth
-    vector<string> att2(versize); // Name
-    vector<string> att3(versize); // Sex
-    vector<int> att4(versize); // num_posts
-    vector<int> att5(versize); // num_friends
-    vector<int> att6(versize); // UID
-    for (int i = 0; i < versize; i++) {
-        cin >> att1[i] >> att2[i] >> att3[i] >> att4[i] >> att5[i] >> att6[i];
-    }
+        cin >> versize >> edgesize >> NCOLORS;
+        THRESHOLD_NUM_NODES = MC_nodes * versize * NCOLORS / 10;
+        //cout << versize << " " << edgesize << " " << NCOLORS << " " << THRESHOLD_NUM_NODES << endl;
+        vector<int> att1(versize); //Year of birth
+        vector<string> att2(versize); // Name
+        vector<string> att3(versize); // Sex
+        vector<int> att4(versize); // num_posts
+        vector<int> att5(versize); // num_friends
+        vector<int> att6(versize); // UID
+        for (int i = 0; i < versize; i++) {
+            cin >> att1[i] >> att2[i] >> att3[i] >> att4[i] >> att5[i] >> att6[i];
+        }
 
-    vector< vector< pair<int, char> > > adj, rev_adj;
-    adj.resize(versize);
-    rev_adj.resize(versize);
-    int u, v;
-    char color;
-    for (int i = 0; i < edgesize; i++) {
-        cin >> u >> v >> color;
-        //cout << u << " -- " << v << " -- " << color << endl;
-        adj[u].push_back(make_pair(v, color));
-        rev_adj[v].push_back(make_pair(u, color));
-    }
+        vector< vector< pair<int, char> > > adj, rev_adj;
+        adj.resize(versize);
+        rev_adj.resize(versize);
+        int u, v;
+        char color;
+        for (int i = 0; i < edgesize; i++) {
+            cin >> u >> v >> color;
+            //cout << u << " -- " << v << " -- " << color << endl;
+            adj[u].push_back(make_pair(v, color));
+            rev_adj[v].push_back(make_pair(u, color));
+        }
 
-    // Build the partial index
-    unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash>
-        partial_BFS_mat_forward = partial_BFS_mat_build(versize, adj, rev_adj);
-    unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash>
-        partial_BFS_mat_backward = partial_BFS_mat_build(versize, rev_adj, adj);
-
-    string uatt, vatt, regex;
-    int querysize;
-    int num_queries;
-
-    cin >> querysize;
-    vector<int> time_record;
-
-    /********************DEBUG***************************/
-    //querysize = 1;
-    /********************DEBUG***************************/
-
-    while (querysize--) {
-        // perform query
-        num_queries += 1;
-        cin >> uatt >> vatt >> regex;
+        // Build the partial index
         auto start = std::chrono::high_resolution_clock::now();
-        vector<int> begin = find_candidate_nodes(uatt, att1, att2, att3, att4, att5, att6, versize);
-        vector<int> end = find_candidate_nodes(vatt, att1, att2, att3, att4, att5, att6, versize);
-        unordered_set<int> begin_nodes(begin.begin(), begin.end());
-        unordered_set<int> end_nodes(end.begin(), end.end());
-        evaluate_query(versize, begin_nodes, end_nodes, regex, adj, rev_adj,
-                partial_BFS_mat_forward, partial_BFS_mat_backward);
+        unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash>
+            partial_BFS_mat_forward = partial_BFS_mat_build(versize, adj, rev_adj);
+        unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash>
+            partial_BFS_mat_backward = partial_BFS_mat_build(versize, rev_adj, adj);
         auto diff = std::chrono::high_resolution_clock::now() - start;
-        auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
-        cout << t1.count();
-        if (querysize != 0) {
-            cout << ", ";
+        auto prepro_time = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+
+        string uatt, vatt, regex;
+        int querysize;
+        int num_queries;
+
+        cin >> querysize;
+        cout << "Preprocessing_Time: " << prepro_time.count() << endl;
+
+        while (querysize--) {
+            // perform query
+            num_queries += 1;
+            cin >> uatt >> vatt >> regex;
+            cout << regex << ", ";
+            start = std::chrono::high_resolution_clock::now();
+            vector<int> begin = find_candidate_nodes(uatt, att1, att2, att3, att4, att5, att6, versize);
+            vector<int> end = find_candidate_nodes(vatt, att1, att2, att3, att4, att5, att6, versize);
+            unordered_set<int> begin_nodes(begin.begin(), begin.end());
+            unordered_set<int> end_nodes(end.begin(), end.end());
+            evaluate_query(versize, begin_nodes, end_nodes, regex, adj, rev_adj,
+                    partial_BFS_mat_forward, partial_BFS_mat_backward);
+            diff = std::chrono::high_resolution_clock::now() - start;
+            auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+            cout << t1.count() << ", ";
+            cout << ::hit << ", " << ::miss << endl;
         }
     }
-    cout << endl;
-    //cout << "Num Calls: " << called <<"; Num Hits: " << hit << endl;
     return 0;
 }

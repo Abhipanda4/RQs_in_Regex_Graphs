@@ -238,6 +238,7 @@ void save_BFS_matrix(int*** BFS_mat, int versize, int* color_frequency, FILE* fp
         //cout << count << " ^^" << endl;
         //cout << "Mark1" << endl;
         color_frequency[c] = connected_nodes.size();
+        //cout << "--> " << color_frequency[c] << endl;
         //sort(connected_nodes.begin(), connected_nodes.end(),
                 //[](triplets a, triplets b) {
                     //return (a.dist <= b.dist);
@@ -447,12 +448,10 @@ void evaluate_query(unordered_set<int> begin_nodes, unordered_set<int> end_nodes
 }
 
 
-int main() {
-    freopen("../temp_graph.txt", "r", stdin);
+int main(int argc, char* argv[]) {
+    freopen(argv[1], "r", stdin);
     int versize, edgesize;
-
     cin >> versize >> edgesize >> n_colors;
-    //cout << versize << " -- " << edgesize << " -- " << n_colors << endl;
     vector<int> att1(versize); //Year of birth
     vector<string> att2(versize); // Name
     vector<string> att3(versize); // Sex
@@ -471,6 +470,7 @@ int main() {
         adj[u][color - 'a'].push_back(v);
     }
 
+    auto start = std::chrono::high_resolution_clock::now();
     int*** BFS_mat = (int***)malloc(n_colors * sizeof(int**));
     for (int i = 0; i < n_colors; i++) {
         BFS_mat[i] = (int**)malloc(versize * sizeof(int*));
@@ -487,29 +487,27 @@ int main() {
     int* color_frequency = (int*)malloc(n_colors * sizeof(int));
     FILE* fp = fopen("../BFS_index/trans_closure", "r+");
     save_BFS_matrix(BFS_mat, versize, color_frequency, fp);
+    auto diff = std::chrono::high_resolution_clock::now() - start;
+    auto prepro_time = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 
     string uatt, vatt, regex;
     int querysize;
-    int num_queries;
 
     cin >> querysize;
+    cout << "Preprocessing_Time: " << prepro_time.count() << endl;
     while (querysize--) {
         // perform query
-        num_queries += 1;
         cin >> uatt >> vatt >> regex;
-        auto start = std::chrono::high_resolution_clock::now();
+        cout << versize << ", " << uatt << ", " << vatt << ", " << regex << ", ";
+        start = std::chrono::high_resolution_clock::now();
         vector<int> begin = find_candidate_nodes(uatt, att1, att2, att3, att4, att5, att6, versize);
         vector<int> end = find_candidate_nodes(vatt, att1, att2, att3, att4, att5, att6, versize);
         unordered_set<int> begin_nodes(begin.begin(), begin.end());
         unordered_set<int> end_nodes(end.begin(), end.end());
         evaluate_query(begin_nodes, end_nodes, color_frequency, regex, fp);
-        auto diff = std::chrono::high_resolution_clock::now() - start;
-        auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
-        cout << t1.count();
-        if (querysize != 0) {
-            cout << ", ";
-        }
+        diff = std::chrono::high_resolution_clock::now() - start;
+        auto eval_time = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+        cout << eval_time.count() << endl;
     }
-    cout << endl;
     return 0;
 }

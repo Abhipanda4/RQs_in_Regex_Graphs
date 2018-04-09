@@ -292,8 +292,8 @@ void evaluate_query(
 }
 
 
-int main() {
-    freopen("../temp_graph.txt", "r", stdin);
+int main(int argc, char* argv[]) {
+    freopen(argv[1], "r", stdin);
     int versize, edgesize;
 
     cin >> versize >> edgesize >> n_colors;
@@ -329,6 +329,7 @@ int main() {
         // perform query
         num_queries += 1;
         cin >> uatt >> vatt >> regex;
+        cout << versize << ", " << uatt << ", " << vatt << ", " << regex << ", ";
         auto start = std::chrono::high_resolution_clock::now();
         vector<int> begin = find_candidate_nodes(uatt, att1, att2, att3, att4, att5, att6, versize);
         vector<int> end = find_candidate_nodes(vatt, att1, att2, att3, att4, att5, att6, versize);
@@ -337,10 +338,7 @@ int main() {
         evaluate_query(versize, begin_nodes, end_nodes, regex, adj, rev_adj);
         auto diff = std::chrono::high_resolution_clock::now() - start;
         auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
-        cout << t1.count();
-        if (querysize != 0) {
-            cout << ", ";
-        }
+        cout << t1.count() << endl;
     }
     cout << endl;
     return 0;
