@@ -691,6 +691,7 @@ unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> partial_BFS
                     return (a.second < b.second);
                 });
         table[key] = res;
+        // cout << "[" << key.first << ", " << key.second << "] - " << res.size() << endl;
     }
     return table;
 }
@@ -764,6 +765,9 @@ int main(int argc, char* argv[]) {
             auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
             cout << t1.count() << ", ";
             cout << ::hit << ", " << ::miss << endl;
+            ::hit = 0;
+            ::miss = 0;
+            ::called = 0;
         }
     }
     return 0;
