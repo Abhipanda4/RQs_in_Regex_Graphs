@@ -26,3 +26,18 @@ The queries are specified by using node predicates and regular expressions:
     * partial\_indexing_BFS.cpp : This is responsible for running monte-carlo simulations to calculate a partial index and then answer Regular path Queries using this index.
     * trans\_closure.cpp : This calculates a full transitive closure for the data graph and uses it to answer the queries.
     * BFS\_efficient.cpp : This implemenatation uses simple BFS algorithm to find possible paths.
+
+2. To compile any source file, use command:
+    ```
+    g++ -std=c++11 <source-file-name>
+    ```
+    Optionally, you can use a -o flag with g++ to give the binary a custom name
+    ```
+    g++ -std=c++11 <source-file-name> -o <custom-name>
+    ```
+
+3. To finally run the program, use:
+    ```
+    ./a.out <target-graph-file>
+    ```
+    where __target-graph-file__ is the graph file on which queries are to be performed. A sample file has been provided in data_files folder, named graph_15000.txt which has 15000 nodes and 45000 edges.
