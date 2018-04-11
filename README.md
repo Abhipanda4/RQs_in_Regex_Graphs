@@ -1,5 +1,5 @@
 ## Regular Path Queries Using Monte Carlo Framework
-This work tries to optimize regular expression queries based on a data graph by calculating a partial index based on Monte carlo sampling.
+This work tries to optimize regular expression queries based on a data graph by calculating a partial index using Monte carlo sampling.
 
 A data graph is a collection of nodes and edges. For this work, the synthetic graphs considered have the following characterstics:
 1. Each node is represented by a set of 6 attrbutes:
@@ -21,3 +21,8 @@ The queries are specified by using node predicates and regular expressions:
 2. The regular expression is a string formed from the grammar S -> c | c<=k | c+; where c is a color and k is any integer.
 
 ## Instructions on executing and preparing data graphs
+
+1. Go into the src folder. There are 3 cpp files
+    * partial\_indexing_BFS.cpp : This is responsible for running monte-carlo simulations to calculate a partial index and then answer Regular path Queries using this index.
+    * trans\_closure.cpp : This calculates a full transitive closure for the data graph and uses it to answer the queries.
+    * BFS\_efficient.cpp : This implemenatation uses simple BFS algorithm to find possible paths.
