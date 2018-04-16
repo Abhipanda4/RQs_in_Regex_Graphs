@@ -8,7 +8,7 @@ using namespace std;
 int hit = 0;
 int miss = 0;
 int called = 0;
-int NUM_SIMULATIONS = 100;
+int NUM_SIMULATIONS = 10;
 int THRESHOLD_NUM_NODES = 1000;
 int NCOLORS = -1;
 
@@ -397,7 +397,7 @@ T find_Kth_largest(vector<T> &X, int k) {
      * Function to find kth largest number in a vector
      */
     sort(X.begin(), X.end(), greater<int>());
-    return *(X.begin() + k - 1);
+    return *(X.begin() + k);
 }
 
 template <typename T>
@@ -704,12 +704,12 @@ unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> partial_BFS
 
 
 int main(int argc, char* argv[]) {
-    for (int MC_nodes = 1; MC_nodes <= 5; MC_nodes++) {
+    for (int MC_nodes = 1; MC_nodes <= 30; MC_nodes++) {
         freopen(argv[1], "r", stdin);
         int versize, edgesize;
 
         cin >> versize >> edgesize >> NCOLORS;
-        THRESHOLD_NUM_NODES = MC_nodes * versize * NCOLORS / 10;
+        THRESHOLD_NUM_NODES = 100 * MC_nodes;
         //cout << versize << " " << edgesize << " " << NCOLORS << " " << THRESHOLD_NUM_NODES << endl;
         vector<int> att1(versize); //Year of birth
         vector<string> att2(versize); // Name
@@ -747,13 +747,13 @@ int main(int argc, char* argv[]) {
         int num_queries;
 
         cin >> querysize;
-        cout << "Preprocessing_Time: " << prepro_time.count() << endl;
+        //cout << "Preprocessing_Time: " << prepro_time.count() << endl;
 
         while (querysize--) {
             // perform query
             num_queries += 1;
             cin >> uatt >> vatt >> regex;
-            cout << regex << ", ";
+            //cout << versize << ", " << regex << ", ";
             start = std::chrono::high_resolution_clock::now();
             vector<int> begin = find_candidate_nodes(uatt, att1, att2, att3, att4, att5, att6, versize);
             vector<int> end = find_candidate_nodes(vatt, att1, att2, att3, att4, att5, att6, versize);
@@ -764,10 +764,11 @@ int main(int argc, char* argv[]) {
             diff = std::chrono::high_resolution_clock::now() - start;
             auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
             cout << t1.count() << ", ";
-            cout << ::hit << ", " << ::miss << endl;
+            //cout << ::hit << ", " << ::miss;
             ::hit = 0;
             ::miss = 0;
             ::called = 0;
+            cout << endl;
         }
     }
     return 0;
