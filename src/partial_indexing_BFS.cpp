@@ -8,7 +8,7 @@ using namespace std;
 int hit = 0;
 int miss = 0;
 int called = 0;
-int NUM_SIMULATIONS = 10;
+int NUM_SIMULATIONS = 3;
 int THRESHOLD_NUM_NODES = 1000;
 int NCOLORS = -1;
 
@@ -213,19 +213,24 @@ unordered_set<int> find_next_set(
         auto neighbors = color_table.find(make_pair(curr_vertex, color));
         if (neighbors != color_table.end()) {
             // we have found a popular pair
+            auto start = std::chrono::high_resolution_clock::now();
 
             /********************DEBUG***************************/
             ::hit += 1;
             /********************DEBUG***************************/
 
-            auto adjacency = neighbors->second;
-            int N = adjacency.size();
+            //auto adjacency = neighbors->second;
+            int N = (neighbors->second).size();
             int i = 0;
-            while (adjacency[i].second <= limit && i < N) {
-                valid_set.insert(adjacency[i].first);
+            while ((neighbors->second)[i].second <= limit && i < N) {
+                valid_set.insert((neighbors->second)[i].first);
                 i += 1;
             }
+            auto diff = std::chrono::high_resolution_clock::now() - start;
+            auto t = std::chrono::duration_cast<std::chrono::nanoseconds>(diff);
+            //cout << "A2 -- [" << curr_vertex << ", " << color << "], MC took: " << t.count() << endl;
         } else {
+            auto start = std::chrono::high_resolution_clock::now();
             ::miss += 1;
             queue< pair<int, int> > BFS_queue;
             BFS_queue.push(make_pair(curr_vertex, 0));
@@ -250,6 +255,9 @@ unordered_set<int> find_next_set(
                     }
                 }
             }
+            auto diff = std::chrono::high_resolution_clock::now() - start;
+            auto t = std::chrono::duration_cast<std::chrono::nanoseconds>(diff);
+            //cout << "A2 -- [" << curr_vertex << ", " << color << "], BFS took: " << t.count() << endl;
         }
     }
     /********************DEBUG***************************/
@@ -361,7 +369,7 @@ void evaluate_query(
     vector<char> regex_colors;
     vector<string> regex_ops;
     split_regex(regex, regex_colors, regex_ops);
-    if (begin_nodes.size() < end_nodes.size()) {
+    if ( true || begin_nodes.size() < end_nodes.size()) {
         // search in forward direction
         BFS_util(versize, begin_nodes, end_nodes, regex_colors, regex_ops, adj, color_table_forward, false);
     } else {
@@ -691,7 +699,7 @@ unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> partial_BFS
                     return (a.second < b.second);
                 });
         table[key] = res;
-        // cout << "[" << key.first << ", " << key.second << "] - " << res.size() << endl;
+         //cout << "Node: " << key.first << ", Color: " << key.second << " Size: " << res.size() << endl;
     }
     return table;
 }
@@ -702,14 +710,33 @@ unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> partial_BFS
  ******************************************************************************
  */
 
+void save_partial_table( unordered_map< pair<int, char>, vector< pair<int, int> >, pair_hash> &X, int size) {
+    cout << "File written" << endl;
+    string filename = "../BFS_index/partial_TC_" + to_string(size);
+    int N = filename.size();
+    char temp[N + 1];
+    strcpy(temp, filename.c_str());
+    FILE* fp = fopen(temp, "wb");
+    for (auto it = X.begin(); it != X.end(); it++) {
+        auto key = it->first;
+        auto neighbors = it->second;
+        fwrite(&(key), sizeof(key), 1, fp);
+        for (auto it1 = neighbors.begin(); it1 != neighbors.end(); it1++) {
+            fwrite(&(*it1), sizeof(*it1), 1, fp);
+        }
+    }
+    cout << "File written" << endl;
+    return;
+}
+
 
 int main(int argc, char* argv[]) {
-    for (int MC_nodes = 1; MC_nodes <= 30; MC_nodes++) {
+    for (int MC_nodes = 1; MC_nodes <= 1; MC_nodes++) {
         freopen(argv[1], "r", stdin);
         int versize, edgesize;
 
         cin >> versize >> edgesize >> NCOLORS;
-        THRESHOLD_NUM_NODES = 100 * MC_nodes;
+        THRESHOLD_NUM_NODES = 500 * MC_nodes;
         //cout << versize << " " << edgesize << " " << NCOLORS << " " << THRESHOLD_NUM_NODES << endl;
         vector<int> att1(versize); //Year of birth
         vector<string> att2(versize); // Name
@@ -742,6 +769,8 @@ int main(int argc, char* argv[]) {
         auto diff = std::chrono::high_resolution_clock::now() - start;
         auto prepro_time = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 
+        save_partial_table(partial_BFS_mat_forward, THRESHOLD_NUM_NODES);
+
         string uatt, vatt, regex;
         int querysize;
         int num_queries;
@@ -768,8 +797,8 @@ int main(int argc, char* argv[]) {
             ::hit = 0;
             ::miss = 0;
             ::called = 0;
-            cout << endl;
         }
+        cout << endl;
     }
     return 0;
 }
