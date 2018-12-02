@@ -254,6 +254,21 @@ void save_BFS_matrix(int*** BFS_mat, int versize, int* color_frequency, FILE* fp
     return;
 }
 
+void debug(int*** M, int versize) {
+    int k = 0;
+    for (int c = 0; c < n_colors; c++) {
+        for (int u = 0; u < versize; u++) {
+            for (int v = 0; v < versize; v++) {
+                if (M[c][u][v] != INF) {
+                    k++;
+                }
+            }
+            cout << "Node: " << u << ", Color: " << c << " Size: " << k << endl;
+            k = 0;
+        }
+    }
+}
+
 int find_color_with_min_frequency(vector<char> regex_colors, int* color_frequency) {
     /*
      * Given a list of color symbols and their frequency in the graph, return the
@@ -483,6 +498,7 @@ int main(int argc, char* argv[]) {
     }
 
     BFS_matrix_build(adj, versize, BFS_mat);
+    debug(BFS_mat, versize);
 
     int* color_frequency = (int*)malloc(n_colors * sizeof(int));
     FILE* fp = fopen("../BFS_index/trans_closure", "r+");

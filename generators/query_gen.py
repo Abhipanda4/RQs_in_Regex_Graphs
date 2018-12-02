@@ -56,9 +56,10 @@ def construct_regex():
     colors = ['a', 'b', 'c', 'd', 'e', 'f']
     # some parameters to fix for queries
     max_colors = 4
-    max_len = 5
+    max_len = 8
     ops = ["", "<="]
-    reg_len = np.random.randint(1, max_colors + 1)
+    # reg_len = np.random.randint(1, max_colors + 1)
+    reg_len = 3
     np.random.shuffle(colors)
     regex = ""
     for color in colors[:reg_len]:

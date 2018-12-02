@@ -201,6 +201,7 @@ unordered_set<int> find_next_set(
     unordered_set<int> valid_set;
     int curr_vertex;
     for (auto it = curr_set.begin(); it != curr_set.end(); it++) {
+        auto start = std::chrono::high_resolution_clock::now();
         curr_vertex = *it;
         queue< pair<int, int> > BFS_queue;
         BFS_queue.push(make_pair(curr_vertex, 0));
@@ -212,19 +213,22 @@ unordered_set<int> find_next_set(
             BFS_queue.pop();
             // insert into queue all unvisited vertices that are
             // connected with valid colored edges from the root
-            if (root.second <= limit && root.second > 0) {
+            if (root.second > 0) {
                 valid_set.insert(root.first);
             }
             for (auto nbr = adj[root.first].begin(); nbr != adj[root.first].end(); nbr++) {
                 pair<int, int> edge = *nbr;
                 if (!visited[edge.first]) {
-                    if (edge.second == color) {
+                    if (edge.second == color && root.second < limit) {
                         BFS_queue.push(make_pair(edge.first, root.second + 1));
                         visited[edge.first] = true;
                     }
                 }
             }
         }
+        auto diff = std::chrono::high_resolution_clock::now() - start;
+        auto t = std::chrono::duration_cast<std::chrono::nanoseconds>(diff);
+        cout << "A3 -- [" << curr_vertex << ", " << color << "], BFS took: " << t.count() << endl;
     }
     return valid_set;
 }
@@ -325,6 +329,7 @@ int main(int argc, char* argv[]) {
     cin >> querysize;
 
 
+    querysize = 1;
     while (querysize--) {
         // perform query
         num_queries += 1;
